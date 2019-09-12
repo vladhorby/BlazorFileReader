@@ -2,11 +2,10 @@
 using System.Threading.Tasks;
 using System.IO;
 using System.Threading;
-using System.Diagnostics.Contracts;
 
 namespace Blazor.FileReader
 {
-    public partial class FileReaderJsInterop
+    internal partial class FileReaderJsInterop
     {
         private class InteropFileStream : Stream
         {
@@ -54,7 +53,7 @@ namespace Blazor.FileReader
 
             public override int Read(byte[] buffer, int offset, int count)
             {
-                throw new NotImplementedException();
+                throw new NotSupportedException("Synchronous read is not supported by this stream. Use ReadAsync().");
             }
 
             public override long Seek(long offset, SeekOrigin origin)
@@ -91,7 +90,6 @@ namespace Blazor.FileReader
                         throw new ArgumentException("Argument_InvalidSeekOrigin");
                 }
 
-                Contract.Assert(Position >= 0, "_position >= 0");
                 return Position;
             }
 
@@ -110,7 +108,10 @@ namespace Blazor.FileReader
                 base.Dispose(disposing);
                 if (!isDisposed)
                 {
-                    fileReaderJsInterop.DisposeStream(this.fileRef);
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+                    // Fire-and-forget dispose as the only impact is the js GC
+                    this.fileReaderJsInterop.DisposeStream(fileRef);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                     isDisposed = true;
                 }
             }

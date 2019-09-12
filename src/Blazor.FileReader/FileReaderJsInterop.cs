@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Blazor.FileReader
 {
-    public partial class FileReaderJsInterop
+    internal partial class FileReaderJsInterop
     {
         private static readonly IReadOnlyDictionary<string, string> escapeScriptTextReplacements =
             new Dictionary<string, string> { { @"\", @"\\" }, { "\r", @"\r" }, { "\n", @"\n" }, { "'", @"\'" }, { "\"", @"\""" } };
@@ -65,7 +65,7 @@ namespace Blazor.FileReader
             return (int)await CurrentJSRuntime.InvokeAsync<long>($"FileReaderComponent.ClearValue", elementReference);
         }
 
-        public async Task<FileInfo> GetFileInfoFromElement(ElementReference elementReference, int index)
+        public async Task<IFileInfo> GetFileInfoFromElement(ElementReference elementReference, int index)
         {
             return await CurrentJSRuntime.InvokeAsync<FileInfo>($"FileReaderComponent.GetFileInfoFromElement", elementReference, index);
         }
@@ -85,9 +85,9 @@ namespace Blazor.FileReader
             return (int)await CurrentJSRuntime.InvokeAsync<long>($"FileReaderComponent.OpenRead", elementReference, fileIndex);
         }
 
-        private Task<bool> DisposeStream(int fileRef)
+        private async Task<bool> DisposeStream(int fileRef)
         {
-            return CurrentJSRuntime.InvokeAsync<bool>($"FileReaderComponent.Dispose", fileRef);
+            return await CurrentJSRuntime.InvokeAsync<bool>($"FileReaderComponent.Dispose", fileRef);
         }
 
         private async Task<int> ReadFileAsync(int fileRef, byte[] buffer, long position, int count, CancellationToken cancellationToken)

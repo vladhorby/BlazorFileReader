@@ -14,11 +14,11 @@ and [FileReader](https://developer.mozilla.org/en-US/docs/Web/API/FileReader). D
 
 Originally built for Wasm ("Client-side" Blazor), Server-side Blazor (previously aka RazorComponents) is also supported as of version 0.7.1.
 
-Here is a [Live demo](https://tewr.github.io/BlazorFileReader/) that contains the output of [the wasm demo project](src/Demo/Blazor.FileReader.Wasm.Demo). Currently, its a build based on ```v0.14.19226```.
+Here is a [Live demo](https://tewr.github.io/BlazorFileReader/) that contains the output of [the wasm demo project](src/Demo/Blazor.FileReader.Wasm.Demo). Currently, its a build based on ```v0.15.0```.
 
 ## Installation
 
-```0.14.0``` is a pre-release version. First of all, make sure your environment is up to date with the appropriate SDK and VS2019 preview 8. See [this article](https://devblogs.microsoft.com/aspnet/asp-net-core-and-blazor-updates-in-net-core-3-0-preview-8/) for more details.
+```0.15.0``` is a pre-release version. First of all, make sure your environment is up to date with the appropriate SDK and VS2019 preview 8. See [this article](https://devblogs.microsoft.com/aspnet/asp-net-core-and-blazor-updates-in-net-core-3-0-preview-8/) for more details.
 Depending on your [project type](https://docs.microsoft.com/en-us/aspnet/core/razor-components/faq?view=aspnetcore-3.0), use one of the two examples below. 
 For a complete use-case, see the [client](src/Demo/Blazor.FileReader.Wasm.Demo) or [server-side](/src/Demo/Blazor.FileReader.ServerSide.Demo) demo projects.
 
@@ -43,6 +43,7 @@ services.AddFileReaderService(options => options.InitializeOnFirstCall = true);
 
 ```
 
+#### IIS Hosting Bug
 ⚠️🐛 If you are using IIS to host your server-side application, you should also add the following as the first statement of the [Startup.cs Configure() method](src/Demo/Blazor.FileReader.ServerSide.Demo/Startup.cs#L21) to avoid a SignalR / IIS bug. This bug will only appear after a certain time, or never, for most applications, but may appear quickly when using this library as it depends on the amount of data being transferred over SignalR (by default slightly less than 22MB of file data, or 30MB of raw data). Credits to [IVData](https://github.com/IVData) for the find. The bug should be [fixed in release 3.0](https://github.com/aspnet/AspNetCore/issues/13470#issuecomment-525478423), at that point the following can be removed.
 
 ```cs
@@ -62,9 +63,26 @@ using Microsoft.AspNetCore.Http.Features;
             // (...)
 ```
 
+#### Optional SignalR Configuration for large buffer sizes
+For server-side hosting, `bufferSize` + metadata (up to ~30%, depending on `buffersize`) should not exceed the SignalR `MaximumReceiveMessageSize` setting, or you will encounter a client-side exception if the file is larger than `bufferSize`.
+Make sure `MaximumReceiveMessageSize` exceeds your `bufferSize` with 30% to be on the safe side. It is also recommended to set a fixed upper file size in the input tag or validate `file.Size` in code before starting the uploading. The default settings is `32KB`. Thus, if you leave this setting untouched, you should not use a buffer size exceeding `22KB`.
+
+You can set the `MaximumReceiveMessageSize` like this in `Startup.cs` (creds [@ADefWebserver](https://github.com/ADefWebserver) for mentioning this). [Microsoft Docs](https://docs.microsoft.com/en-us/aspnet/core/signalr/configuration?view=aspnetcore-3.0&tabs=dotnet#configure-server-options)
+```
+services.AddServerSideBlazor().AddHubOptions(o =>
+{
+    o.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10MB
+});
+```
+## Gotcha's
+
+### IFileReference.CreateMemoryStreamAsync()
+The `IFileReference.CreateMemoryStreamAsync()` method (without any argument) is basically the same as calling `IFileReference.CreateMemoryStreamAsync(bufferSize: file.Size)`.
+Calling `IFileReference.CreateMemoryStreamAsync()` may thus be unsuitable for large files.
+
 ## Usage in a Blazor View
 
-The code for views looks the same for both [client](src/Demo/Blazor.FileReader.Wasm.Demo)- and [server-side](/src/Demo/Blazor.FileReader.ServerSide.Demo) projects. The demo projects also contains [a drag and drop example](src/Demo/Blazor.FileReader.Demo.Common/DragnDropCommon.razor).
+The code for views looks the same for both [client](src/Demo/Blazor.FileReader.Wasm.Demo)- and [server-side](/src/Demo/Blazor.FileReader.ServerSide.Demo) projects. The demo projects also contains [a drag and drop example](src/Demo/Blazor.FileReader.Demo.Common/DragnDropCommon.razor). While the demo projects are the reference, examples also exist in the [wiki](https://github.com/Tewr/BlazorFileReader/wiki).
 
 ```cs
 @page "/MyPage"
@@ -97,16 +115,21 @@ The code for views looks the same for both [client](src/Demo/Blazor.FileReader.W
 }
 ```
 
+
+
 ## Notes
 
 To use the code in this demo in your own project you need to use at least version 
 ```0.4.0``` of blazor (see branch 0.4.0). 
 
-The ```master``` branch uses the ```v3.0.0-preview8-013656``` sdk.
+The ```master``` branch uses the ```v3.0.0-preview9-014004``` sdk.
 
-Blazor is an ~~experimental~~ preview project, not ready for production use. Just as Blazor API frequently has breaking changes, so does the API of this library.
+Blazor is a ~~experimental~~ preview project, but ~~not~~ [ready for production use](https://devblogs.microsoft.com/dotnet/announcing-net-core-3-0-preview-9/#user-content-go-live). Just as Blazor API frequently has breaking changes, so does the API of this library.
 
 ### Version notes
+
+Version ```0.15.0.19242``` adds support for ```v3.0.0-preview9-014004```. Also fixes [a minor packaging issue](https://github.com/Tewr/BlazorFileReader/issues/55). New API: [IBase64Stream](https://github.com/Tewr/BlazorFileReader/blob/d9cdea5d954eeac6f3ba2a99ec5dbc9181bc23de/src/Blazor.FileReader/FileReaderRef.cs#L50), for optimizing third-party cloud uploads (data exposed as raw base64 strings). Mostly interesting for server-side deployments.
+
 Version ```0.14.19242``` fixes [a possible race condition for server-side initialization](https://github.com/Tewr/BlazorFileReader/issues/71).
 
 Version ```0.14.19226``` adds support for sdk  ```3.0.0-preview8-013656```. Adds shared Buffer back again for WASM, this can be activated by setting the ```UseWasmSharedBuffer``` option to true (recommended).
